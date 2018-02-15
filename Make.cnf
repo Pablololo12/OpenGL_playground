@@ -1,0 +1,38 @@
+-include Files
+
+.SUFFIXES: .c .cc
+
+CXX:=g++
+CXXFLAGS:=-O3 -march=native
+
+LD=g++
+LDFLAGS:=
+LIBS:=
+SYSLIBS:=-lglfw -framework OpenGL -framework GLUT
+
+OBJS:=$(SRCS:.cc=.o)
+DEPS:=$(SRCS:.cc=.d)
+
+all: $(PROG)
+
+$(PROG): $(OBJS)
+	@echo LD $<
+	@$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) $(SYSLIBS)
+
+%.o: %.cc
+	@echo CXX $<
+	@$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
+
+clean::
+	@if [ -n "$(OBJS)" ]; then rm -f $(OBJS); fi
+	@if [ -n "$(DEPS)" ]; then rm -f $(DEPS); fi
+	@if [ -f core ]; then rm -f core; fi
+	@rm -f tags *.linkinfo
+
+mrproper::
+	@if [ -n "$(PROG)" ]; then rm -f $(PROG); fi
+	@if [ -n "$(OBJS)" ]; then rm -f $(OBJS); fi
+	@if [ -n "$(DEPS)" ]; then rm -f $(DEPS); fi
+	@if [ -f core ]; then rm -f core; fi
+	@rm -f tags *.linkinfo
+
