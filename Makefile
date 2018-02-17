@@ -6,8 +6,8 @@ CC = g++
 LD = g++
 LDFLAGS =
 
-SRCDIR   = glfw
-OBJDIR   = glfw
+SRCDIR   = src
+OBJDIR   = src
 
 SOURCES  := $(wildcard $(SRCDIR)/*.cc)
 OBJS  := $(SOURCES:$(SRCDIR)/%.cc=$(OBJDIR)/%.o)
