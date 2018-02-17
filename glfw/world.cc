@@ -42,20 +42,23 @@ GLuint svtx_frag;
 const char* sfrg_src_frag =
 	"#version 330 core\n"
 	"out vec4 color;\n"
-	"uniform vec3 light;\n"
+	"uniform vec3 light_pos;\n"
 	"uniform vec3 camera;\n"
+	"uniform vec3 obj_color;\n"
+	"uniform vec3 light_color;\n"
+	"uniform vec3 das;\n"
 	"in vec3 pos;\n"
 	"in vec3 norm;\n"
 	"void main()\n"
 	"{\n"
-	"	vec3 vec_light = normalize(light-pos);\n"
+	"	vec3 vec_light = normalize(light_pos-pos);\n"
 	"	vec3 vec_v = normalize(camera-pos);\n"
-	"	float l_power = 1/pow(distance(light,pos),2);\n"
+	"	float l_power = 1/pow(distance(light_pos,pos),2);\n"
 	"	float dot_l = dot(vec_light,normalize(norm));\n"
-	"	vec3 difs = dot_l*l_power*vec3(1.0,1.0,1.0);\n" //Kd(N*L)Cd
-	"	vec3 amb = vec3(1.0,1.0,1.0);\n" //ka Cd Cl
-	"	vec3 spe = dot_l*pow(dot(reflect(-light,normalize(norm)),vec_v),3)*vec3(1.0,1.0,1.0)*l_power;\n" //ks (N*L)(R*V)Cs Cl
-	"	color = vec4(0.2*difs+0.3*amb+0.5*spe,1.0);\n"
+	"	vec3 difs = dot_l*l_power*obj_color*light_color;\n" //Kd(N*L)Cd
+	"	vec3 amb = obj_color*light_color;\n" //ka Cd Cl
+	"	vec3 spe = dot_l*pow(dot(reflect(-light_pos,normalize(norm)),vec_v),3)*obj_color*light_color*l_power;\n" //ks (N*L)(R*V)Cs Cl
+	"	color = vec4(difs*das.x+amb*das.y+spe*das.z,1.0);\n"
 	"}\n";
 GLuint sfrg_frag;
 
@@ -64,20 +67,23 @@ const char* svtx_src_vertex =
 	"layout(location=0) in vec3 vpos;\n"
 	"layout(location=1) in vec3 vnos;\n"
 	"uniform mat4 view;\n"
-	"uniform vec3 light;\n"
+	"uniform vec3 light_pos;\n"
+	"uniform vec3 light_color;\n"
 	"uniform vec3 camera;\n"
+	"uniform vec3 obj_color;\n"
+	"uniform vec3 das;\n"
 	"out vec3 f_color;\n"
 	"void main()\n"
 	"{\n"
 	"	gl_Position = view*vec4(vpos,1.0);\n"
-	"	vec3 vec_light = normalize(light-vpos);\n"
+	"	vec3 vec_light = normalize(light_pos-vpos);\n"
 	"	vec3 vec_v = normalize(camera-vpos);\n"
-	"	float l_power = 1/pow(distance(light,vpos),2);\n"
+	"	float l_power = 1/pow(distance(light_pos,vpos),2);\n"
 	"	float dot_l = dot(vec_light,vnos);\n"
-	"	vec3 difs = dot_l*l_power*vec3(1.0,1.0,1.0);\n" //Kd(N*L)Cd
-	"	vec3 amb = vec3(1.0,1.0,1.0);\n" //ka Cd Cl
-	"	vec3 spe = dot_l*pow(dot(reflect(-light,vnos),vec_v),3)*vec3(1.0,1.0,1.0)*l_power;\n" //ks (N*L)(R*V)Cs Cl
-	"   f_color = 0.2*difs+0.3*amb+0.5*spe;\n"
+	"	vec3 difs = dot_l*l_power*obj_color*light_color;\n" //Kd(N*L)Cd
+	"	vec3 amb = obj_color*light_color;\n" //ka Cd Cl
+	"	vec3 spe = dot_l*pow(dot(reflect(-light_pos,vnos),vec_v),3)*obj_color*light_color*l_power;\n" //ks (N*L)(R*V)Cs Cl
+	"   f_color = difs*das.x+amb*das.y+spe*das.z;\n"
 	"}\n";
 GLuint svtx_vertex;
 
@@ -98,13 +104,22 @@ GLuint vao;
 GLuint vao_sz;
 
 glm::mat4	view;
-glm::vec3   light;
+glm::vec3   light_pos;
+glm::vec3   light_color;
+glm::vec3	obj_color;
+glm::vec3	das;
 GLuint		view_loc_frag;
 GLuint		view_loc_vertex;
 GLuint light_loc_vertex;
 GLuint light_loc_frag;
+GLuint light_color_vertex;
+GLuint light_color_frag;
 GLuint camera_loc_vertex;
 GLuint camera_loc_frag;
+GLuint obj_color_loc_vertex;
+GLuint obj_color_loc_frag;
+GLuint das_vertex;
+GLuint das_frag;
 
 void glcheck(const string& msg)
 {
@@ -141,15 +156,16 @@ void world_init()
 {
 	glm::mat4 xf = glm::rotate(glm::radians(90.0f),glm::vec3(1.0f,0.0f,0.0f));
 
-//	obj.load("../model/cube.obj");
-//	obj.load("../model/teapot.obj",xf);
-//	obj.load("../model/sphere.obj");
-	obj.load("../model/venus.obj",xf);
-//	obj.load("../model/bunny.obj",xf);
-//	obj.load("../model/dragon.obj",xf);
-//	obj.load("../model/armadillo.obj",xf);
-//	obj.load("../model/tyra.obj",xf);
-//	obj.load("../model/nefertiti.obj");
+//	obj.load("./model/cube.obj");
+//	obj.load("./model/teapot.obj",xf);
+//	obj.load("./model/sphere.obj");
+//	obj.load("./model/venus.obj",xf);
+//	obj.load("./model/bunny.obj",xf);
+//	obj.load("./model/dragon.obj",xf);
+//	obj.load("./model/armadillo.obj",xf);
+//	obj.load("./model/tyra.obj",xf);
+//	obj.load("./model/nefertiti.obj");
+	obj.load("./model/Interceptor.obj",xf);
 
 	cout << obj.faces().size()/3 << endl;
 
@@ -185,8 +201,12 @@ void world_init()
 	glLinkProgram(prog_frag);
 
 	view_loc_frag = glGetUniformLocation(prog_frag,"view");
-	light_loc_frag = glGetUniformLocation(prog_frag,"light");
+	light_loc_frag = glGetUniformLocation(prog_frag,"light_pos");
+	light_color_frag = glGetUniformLocation(prog_frag,"light_color");
 	camera_loc_frag = glGetUniformLocation(prog_frag,"camera");
+	obj_color_loc_frag = glGetUniformLocation(prog_frag,"obj_color");
+	das_frag = glGetUniformLocation(prog_frag,"das");
+
 
 	// Shader en vertices
 	svtx_vertex = glCreateShader(GL_VERTEX_SHADER);
@@ -203,10 +223,16 @@ void world_init()
 	glLinkProgram(prog_vertex);
 
 	view_loc_vertex = glGetUniformLocation(prog_vertex,"view");
-	light_loc_vertex = glGetUniformLocation(prog_vertex,"light");
+	light_loc_vertex = glGetUniformLocation(prog_vertex,"light_pos");
+	light_color_vertex = glGetUniformLocation(prog_frag,"light_color");
 	camera_loc_vertex = glGetUniformLocation(prog_vertex,"camera");
+	obj_color_loc_vertex = glGetUniformLocation(prog_vertex,"obj_color");
+	das_vertex = glGetUniformLocation(prog_vertex,"das");
 
-	light = {0.0,1.0,0.0};
+	light_pos = {0.0,1.0,0.0};
+	light_color = {1.0,1.0,1.0};
+	obj_color = {1.0,1.0,1.0};
+	das = {0.9,0.0,0.1};
 
 	glClearColor(0,0,0,0);
 }
@@ -254,11 +280,18 @@ void world_display(int w,int h)
 		glUseProgram(prog_frag);
 		glUniform3fv(camera_loc_frag,1, glm::value_ptr(cam));
 		glUniform3fv(light_loc_frag,1, glm::value_ptr(cam));
+		glUniform3fv(light_color_frag,1, glm::value_ptr(light_color));
+		glUniform3fv(obj_color_loc_frag,1, glm::value_ptr(obj_color));
+		glUniform3fv(das_frag,1, glm::value_ptr(das));
 		glUniformMatrix4fv(view_loc_frag,1,GL_FALSE,glm::value_ptr(view));
+
 	} else {
 		glUseProgram(prog_vertex);
 		glUniform3fv(camera_loc_vertex,1, glm::value_ptr(cam));
 		glUniform3fv(light_loc_vertex,1, glm::value_ptr(cam));
+		glUniform3fv(light_color_vertex,1, glm::value_ptr(light_color));
+		glUniform3fv(obj_color_loc_vertex,1, glm::value_ptr(obj_color));
+		glUniform3fv(das_vertex,1, glm::value_ptr(das));
 		glUniformMatrix4fv(view_loc_vertex,1,GL_FALSE,glm::value_ptr(view));
 	}
 

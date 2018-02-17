@@ -14,7 +14,7 @@ void mouse(GLFWwindow* win,int but,int act,int mod);
 void motion(GLFWwindow* win,double x,double y);
 void scroll(GLFWwindow* win,double x,double y);
 
-bool rotate=false;
+bool rotate_o=false;
 
 using namespace std;
 
@@ -51,7 +51,7 @@ int main(int argc,char* argv[])
 
 	while (!glfwWindowShouldClose(win))
 	{
-		if(!rotate){
+		if(!rotate_o){
 			glfwWaitEvents();
 		}
 		else {
@@ -136,7 +136,7 @@ void keyboard(GLFWwindow* win,int key,int s,int act,int mod)
 			world_fill = !world_fill;
 			break;
 		case GLFW_KEY_P:
-			rotate = !rotate;
+			rotate_o = !rotate_o;
 			break;
 		case GLFW_KEY_S:
 			world_shading_frag = !world_shading_frag;
