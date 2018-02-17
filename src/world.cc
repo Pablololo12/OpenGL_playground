@@ -19,82 +19,16 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include "world.h"
 #include "obj.h"
 
 using namespace std;
 
-const char* svtx_src_frag =
-	"#version 330 core\n"
-	"layout(location=0) in vec3 vpos;\n"
-	"layout(location=1) in vec3 vnos;\n"
-	"uniform mat4 view;\n"
-	"out vec3 pos;\n"
-	"out vec3 norm;\n"
-	"void main()\n"
-	"{\n"
-	"   pos = vpos;\n"
-	"   norm = vnos;\n"
-	"	gl_Position = view*vec4(vpos,1.0);\n"
-	"}\n";
 GLuint svtx_frag;
-
-const char* sfrg_src_frag =
-	"#version 330 core\n"
-	"out vec4 color;\n"
-	"uniform vec3 light_pos;\n"
-	"uniform vec3 camera;\n"
-	"uniform vec3 obj_color;\n"
-	"uniform vec3 light_color;\n"
-	"uniform vec3 das;\n"
-	"in vec3 pos;\n"
-	"in vec3 norm;\n"
-	"void main()\n"
-	"{\n"
-	"	vec3 vec_light = normalize(light_pos-pos);\n"
-	"	vec3 vec_v = normalize(camera-pos);\n"
-	"	float l_power = 1/pow(distance(light_pos,pos),2);\n"
-	"	float dot_l = dot(vec_light,normalize(norm));\n"
-	"	vec3 difs = dot_l*l_power*obj_color*light_color;\n" //Kd(N*L)Cd
-	"	vec3 amb = obj_color*light_color;\n" //ka Cd Cl
-	"	vec3 spe = dot_l*pow(dot(reflect(-light_pos,normalize(norm)),vec_v),3)*obj_color*light_color*l_power;\n" //ks (N*L)(R*V)Cs Cl
-	"	color = vec4(difs*das.x+amb*das.y+spe*das.z,1.0);\n"
-	"}\n";
 GLuint sfrg_frag;
 
-const char* svtx_src_vertex =
-	"#version 330 core\n"
-	"layout(location=0) in vec3 vpos;\n"
-	"layout(location=1) in vec3 vnos;\n"
-	"uniform mat4 view;\n"
-	"uniform vec3 light_pos;\n"
-	"uniform vec3 light_color;\n"
-	"uniform vec3 camera;\n"
-	"uniform vec3 obj_color;\n"
-	"uniform vec3 das;\n"
-	"out vec3 f_color;\n"
-	"void main()\n"
-	"{\n"
-	"	gl_Position = view*vec4(vpos,1.0);\n"
-	"	vec3 vec_light = normalize(light_pos-vpos);\n"
-	"	vec3 vec_v = normalize(camera-vpos);\n"
-	"	float l_power = 1/pow(distance(light_pos,vpos),2);\n"
-	"	float dot_l = dot(vec_light,vnos);\n"
-	"	vec3 difs = dot_l*l_power*obj_color*light_color;\n" //Kd(N*L)Cd
-	"	vec3 amb = obj_color*light_color;\n" //ka Cd Cl
-	"	vec3 spe = dot_l*pow(dot(reflect(-light_pos,vnos),vec_v),3)*obj_color*light_color*l_power;\n" //ks (N*L)(R*V)Cs Cl
-	"   f_color = difs*das.x+amb*das.y+spe*das.z;\n"
-	"}\n";
 GLuint svtx_vertex;
-
-const char* sfrg_src_vertex =
-	"#version 330 core\n"
-	"out vec4 color;\n"
-	"in vec3 f_color;\n"
-	"void main()\n"
-	"{\n"
-	"	color = vec4(f_color,1.0);\n"
-	"}\n";
 GLuint sfrg_vertex;
 
 GLuint prog_frag;
@@ -108,6 +42,7 @@ glm::vec3   light_pos;
 glm::vec3   light_color;
 glm::vec3	obj_color;
 glm::vec3	das;
+
 GLuint		view_loc_frag;
 GLuint		view_loc_vertex;
 GLuint light_loc_vertex;
@@ -150,6 +85,19 @@ void glcheck(const string& msg)
 	}
 }
 
+string get_shader(string filename)
+{
+	ifstream is;
+
+	is.open(filename);
+	if (!is)
+		cerr << "Can't open file " << filename << endl;
+	stringstream buffer;
+	buffer << is.rdbuf();
+	is.close();
+	return buffer.str();
+}
+
 OBJ obj;
 
 void world_init()
@@ -186,13 +134,18 @@ void world_init()
 	glBufferData(GL_ARRAY_BUFFER,vao_sz*sizeof(glm::vec3),obj.normals().data(),GL_STATIC_DRAW);
 	glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,sizeof(glm::vec3),NULL);
 
+	const char * tmp;
 	// Shader en fragmento
+	string f_vertex_src = get_shader("shaders/fragment_shader.vert");
+	string f_fragment_src = get_shader("shaders/fragment_shader.frag");
 	svtx_frag = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(svtx_frag,1,&svtx_src_frag,NULL);
+	tmp = f_vertex_src.c_str();
+	glShaderSource(svtx_frag,1,&tmp,NULL);
 	glCompileShader(svtx_frag);
 
 	sfrg_frag = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(sfrg_frag,1,&sfrg_src_frag,NULL);
+	tmp = f_fragment_src.c_str();
+	glShaderSource(sfrg_frag,1,&tmp,NULL);
 	glCompileShader(sfrg_frag);
 
 	prog_frag = glCreateProgram();
@@ -209,12 +162,16 @@ void world_init()
 
 
 	// Shader en vertices
+	string v_vertex_src = get_shader("shaders/vertex_shader.vert");
+	string v_fragment_src = get_shader("shaders/vertex_shader.frag");
 	svtx_vertex = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(svtx_vertex,1,&svtx_src_vertex,NULL);
+	tmp = v_vertex_src.c_str();
+	glShaderSource(svtx_vertex,1,&tmp,NULL);
 	glCompileShader(svtx_vertex);
 
 	sfrg_vertex = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(sfrg_vertex,1,&sfrg_src_vertex,NULL);
+	tmp = v_fragment_src.c_str();
+	glShaderSource(sfrg_vertex,1,&tmp,NULL);
 	glCompileShader(sfrg_vertex);
 
 	prog_vertex = glCreateProgram();
