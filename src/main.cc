@@ -3,6 +3,8 @@
 #include <vector>
 #include <iostream>
 #include <cmath>
+#include <png.h>
+#include <cstdlib>
 
 void ogl_info(GLFWwindow* win);
 void ogl_init(GLFWwindow* win);
@@ -13,6 +15,9 @@ void keyboard(GLFWwindow* win,int key,int s,int act,int mod);
 void mouse(GLFWwindow* win,int but,int act,int mod);
 void motion(GLFWwindow* win,double x,double y);
 void scroll(GLFWwindow* win,double x,double y);
+
+int height=650;
+int width=780;
 
 bool rotate_o=false;
 
@@ -32,7 +37,7 @@ int main(int argc,char* argv[])
 	{
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,v/10);
 		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,v%10);
-		win = glfwCreateWindow(780,650,"OpenGL",NULL,NULL);
+		win = glfwCreateWindow(width,height,"OpenGL",NULL,NULL);
 		if (win!=nullptr)
 			break;
 	}
@@ -85,6 +90,8 @@ void ogl_init(GLFWwindow* win)
 void ogl_reshape(GLFWwindow* win,int w,int h)
 {
 	glfwMakeContextCurrent(win);
+	width = w;
+	height = h;
 
 	world_reshape(w,h);
 }
@@ -99,6 +106,48 @@ void ogl_display(GLFWwindow* win)
 	world_display(w,h);
 
 	glfwSwapBuffers(win);
+}
+
+void save_image()
+{
+	//int width = 780;
+	//int height = 650;
+	int i,d;
+	png_bytep row = NULL;
+	cout << "Taking Snapshot" << endl;
+	unsigned char* pixels = new unsigned char[3 * width * height];
+	glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+	FILE *fp = fopen("snap.png", "wb");
+	png_structp png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+	png_infop info = png_create_info_struct(png);
+	if (setjmp(png_jmpbuf(png))){
+		cout << "Error taking snapshot" << endl;
+	}
+	png_init_io(png, fp);
+	png_set_IHDR(
+		png,
+		info,
+		width, height,
+		8,
+		PNG_COLOR_TYPE_RGB,
+		PNG_INTERLACE_NONE,
+		PNG_COMPRESSION_TYPE_DEFAULT,
+		PNG_FILTER_TYPE_DEFAULT
+	);
+	png_write_info(png, info);
+	
+	row = (png_bytep) malloc(3 * width * sizeof(png_byte));
+	for (i=height-1; i>=0; i--) {
+		for (d=0;d<width*3;d++) {
+			row[d]=pixels[i*width*3+d];
+		}
+		png_write_row(png, row);
+	}
+	//png_write_image(png, pixels);
+	free(row);
+	png_write_end(png, NULL);
+	fclose(fp);
+	cout << "Snapshot saved" << endl;
 }
 
 void keyboard(GLFWwindow* win,int key,int s,int act,int mod)
@@ -139,7 +188,7 @@ void keyboard(GLFWwindow* win,int key,int s,int act,int mod)
 			rotate_o = !rotate_o;
 			break;
 		case GLFW_KEY_S:
-			world_shading_frag = !world_shading_frag;
+			save_image();
 			break;
 		default:
 			cout << "key " << key << "<" << char(key) << ">" << endl;

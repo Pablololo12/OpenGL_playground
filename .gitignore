@@ -8,6 +8,9 @@
 #*.obj 
 .DS_Store
 model/
+env/
+tex/
+*.png
 
 # Precompiled Headers
 *.gch

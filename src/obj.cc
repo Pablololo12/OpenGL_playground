@@ -24,8 +24,10 @@ bool OBJ::load(const string& fname,const glm::mat4& xf)
 {
 	v.clear();
 	vn.clear();
+	vt.clear();
 	fv.clear();
 	fvn.clear();
+	fvt.clear();
 
 	ifstream is;
 
@@ -56,7 +58,7 @@ bool OBJ::load(const string& fname,const glm::mat4& xf)
 		}
 		if (tag=="vt")
 		{
-			is.ignore(0xFFFF,'\n');
+			load_vt(is);
 			continue;
 		}
 
@@ -143,11 +145,13 @@ bool OBJ::load(const string& fname,const glm::mat4& xf)
 
 	if (fvn.size()==0)
 		make_normals();
+	if (fvt.size()==0)
+		make_texcoord();
 
 	for (auto& v : fv)
 		v = glm::vec3(xf*glm::vec4(v.x,v.y,v.z,1.0f));
-	for (auto& v : fvn)
-		v = glm::mat3(xf)*v;
+	for (auto& n : fvn)
+		n = glm::mat3(xf)*n;
 
 	return true;
 }
@@ -178,6 +182,19 @@ void OBJ::load_vn(ifstream& is)
 	vn.push_back(glm::vec3(x,y,z));
 }
 
+void OBJ::load_vt(ifstream& is)
+{
+	is >> ws;
+	string params;
+	getline(is,params);
+	stringstream ss(params);
+
+	float x=0.0,y=0.0,z=0.0;
+	ss >> x >> y >> z;
+
+	vt.push_back(glm::vec3(x,y,z));
+}
+
 void OBJ::load_f(ifstream& is)
 {
 	is >> ws;
@@ -187,6 +204,7 @@ void OBJ::load_f(ifstream& is)
 
 	vector<int> ifv;
 	vector<int> ifvn;
+	vector<int> ifvt;
 
 	string vs;
 	while (ss >> vs)
@@ -221,18 +239,31 @@ void OBJ::load_f(ifstream& is)
 		if (kv<=0) continue;
 		ifv.push_back(kv);
 
-		if (kvn<=0) continue;
-		ifvn.push_back(kvn);
+		if (kvt>0)
+			ifvt.push_back(kvt);
+		if (kvn>0)
+			ifvn.push_back(kvn);
 	}
 
-	fv.push_back(v[ifv[0]-1]);
-	fv.push_back(v[ifv[1]-1]);
-	fv.push_back(v[ifv[2]-1]);
-	if (ifvn.size()>0)
+	bool hasn = (ifvn.size()>0);
+	bool hast = (ifvt.size()>0);
+	for (int i=1; i<(ifv.size()-1); i++)
 	{
-		fvn.push_back(vn[ifvn[0]-1]);
-		fvn.push_back(vn[ifvn[1]-1]);
-		fvn.push_back(vn[ifvn[2]-1]);
+		fv.push_back(v[ifv[0  ]-1]);
+		fv.push_back(v[ifv[i  ]-1]);
+		fv.push_back(v[ifv[i+1]-1]);
+		if (hasn)
+		{
+		fvn.push_back(vn[ifvn[0  ]-1]);
+		fvn.push_back(vn[ifvn[i  ]-1]);
+		fvn.push_back(vn[ifvn[i+1]-1]);
+		}
+		if (hast)
+		{
+		fvt.push_back(vt[ifvt[0  ]-1]);
+		fvt.push_back(vt[ifvt[i  ]-1]);
+		fvt.push_back(vt[ifvt[i+1]-1]);
+		}
 	}
 }
 
@@ -253,7 +284,7 @@ void OBJ::normalize()
 	}
 
 	glm::vec3 size = maxv - minv;
-	cout << "sz " << size.x << " " << size.y << " " << size.z << endl;
+//	cout << "sz " << size.x << " " << size.y << " " << size.z << endl;
 	glm::vec3 center = (maxv + minv);
 	center.x *= 0.5;
 	center.y *= 0.5;
@@ -279,5 +310,15 @@ void OBJ::make_normals()
 		fvn.push_back(n);
 		fvn.push_back(n);
 	}
+}
 
+void OBJ::make_texcoord()
+{
+	for (int i=0; i<fv.size(); i+=3)
+	{
+		glm::vec3 t = fv[i];
+		fvt.push_back(t);
+		fvt.push_back(t);
+		fvt.push_back(t);
+	}
 }

@@ -22,39 +22,35 @@
 #include <sstream>
 #include "world.h"
 #include "obj.h"
+#include "png.h"
 
 using namespace std;
 
 GLuint svtx_frag;
 GLuint sfrg_frag;
 
-GLuint svtx_vertex;
-GLuint sfrg_vertex;
-
 GLuint prog_frag;
-GLuint prog_vertex;
 
 GLuint vao;
 GLuint vao_sz;
+
+GLuint tex;
+GLuint ten;
 
 glm::mat4	view;
 glm::vec3   light_pos;
 glm::vec3   light_color;
 glm::vec3	obj_color;
-glm::vec3	das;
+glm::vec4	dasr;
 
 GLuint		view_loc_frag;
-GLuint		view_loc_vertex;
-GLuint light_loc_vertex;
 GLuint light_loc_frag;
-GLuint light_color_vertex;
 GLuint light_color_frag;
-GLuint camera_loc_vertex;
 GLuint camera_loc_frag;
-GLuint obj_color_loc_vertex;
 GLuint obj_color_loc_frag;
-GLuint das_vertex;
 GLuint das_frag;
+GLuint textures_loc;
+const GLint samplers[2] = {0,1};
 
 void glcheck(const string& msg)
 {
@@ -105,7 +101,7 @@ void world_init()
 	glm::mat4 xf = glm::rotate(glm::radians(90.0f),glm::vec3(1.0f,0.0f,0.0f));
 
 //	obj.load("./model/cube.obj");
-//	obj.load("./model/teapot.obj",xf);
+	obj.load("./model/teapot.obj",xf);
 //	obj.load("./model/sphere.obj");
 //	obj.load("./model/venus.obj",xf);
 //	obj.load("./model/bunny.obj",xf);
@@ -113,7 +109,8 @@ void world_init()
 //	obj.load("./model/armadillo.obj",xf);
 //	obj.load("./model/tyra.obj",xf);
 //	obj.load("./model/nefertiti.obj");
-	obj.load("./model/Interceptor.obj",xf);
+//	obj.load("./model/Interceptor.obj",xf);
+//	obj.load("./model/bb8.obj",xf);
 
 	cout << obj.faces().size()/3 << endl;
 
@@ -134,9 +131,39 @@ void world_init()
 	glBufferData(GL_ARRAY_BUFFER,vao_sz*sizeof(glm::vec3),obj.normals().data(),GL_STATIC_DRAW);
 	glVertexAttribPointer(1,3,GL_FLOAT,GL_FALSE,sizeof(glm::vec3),NULL);
 
+	GLuint vtc = 0;
+	glGenBuffers(1,&vtc);
+	glBindBuffer(GL_ARRAY_BUFFER,vtc);
+	glBufferData(GL_ARRAY_BUFFER,vao_sz*sizeof(glm::vec3),obj.texcoord().data(),GL_STATIC_DRAW);
+	glVertexAttribPointer(2,3,GL_FLOAT,GL_FALSE,sizeof(glm::vec3),NULL);
+
+	PNG textura("./tex/checker.png");
+//	PNG textura("./tex/desplazamiento.png");
+	glGenTextures(1,&tex);
+	glBindTexture(GL_TEXTURE_2D,tex);
+	glTexImage2D(GL_TEXTURE_2D,0,GL_RGB32F,textura.width(),textura.height(),0,GL_RGB,GL_FLOAT,textura.pixels().data());
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);//GL_LINEAR
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);//GL_LINEAR_MIPMAP_LINEAR
+
+	PNG desp("./env/sphr/lake.png");
+//	PNG desp("./env/sphr/rnl.png");
+//	PNG desp("./env/pano/city.png");
+//	PNG desp("./env/pano/uffizi.png");
+	glGenTextures(1,&ten);
+	glBindTexture(GL_TEXTURE_2D,ten);
+	glTexImage2D(GL_TEXTURE_2D,0,GL_RGB32F,desp.width(),desp.height(),0,GL_RGB,GL_FLOAT,desp.pixels().data());
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);//GL_LINEAR
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);//GL_LINEAR_MIPMAP_LINEAR
+
 	const char * tmp;
 	// Shader en fragmento
-	string f_vertex_src = get_shader("shaders/fragment_shader.vert");
+	string f_vertex_src = get_shader("shaders/vertex_shader.vert");
 	string f_fragment_src = get_shader("shaders/fragment_shader.frag");
 	svtx_frag = glCreateShader(GL_VERTEX_SHADER);
 	tmp = f_vertex_src.c_str();
@@ -158,38 +185,13 @@ void world_init()
 	light_color_frag = glGetUniformLocation(prog_frag,"light_color");
 	camera_loc_frag = glGetUniformLocation(prog_frag,"camera");
 	obj_color_loc_frag = glGetUniformLocation(prog_frag,"obj_color");
-	das_frag = glGetUniformLocation(prog_frag,"das");
-
-
-	// Shader en vertices
-	string v_vertex_src = get_shader("shaders/vertex_shader.vert");
-	string v_fragment_src = get_shader("shaders/vertex_shader.frag");
-	svtx_vertex = glCreateShader(GL_VERTEX_SHADER);
-	tmp = v_vertex_src.c_str();
-	glShaderSource(svtx_vertex,1,&tmp,NULL);
-	glCompileShader(svtx_vertex);
-
-	sfrg_vertex = glCreateShader(GL_FRAGMENT_SHADER);
-	tmp = v_fragment_src.c_str();
-	glShaderSource(sfrg_vertex,1,&tmp,NULL);
-	glCompileShader(sfrg_vertex);
-
-	prog_vertex = glCreateProgram();
-	glAttachShader(prog_vertex,svtx_vertex);
-	glAttachShader(prog_vertex,sfrg_vertex);
-	glLinkProgram(prog_vertex);
-
-	view_loc_vertex = glGetUniformLocation(prog_vertex,"view");
-	light_loc_vertex = glGetUniformLocation(prog_vertex,"light_pos");
-	light_color_vertex = glGetUniformLocation(prog_frag,"light_color");
-	camera_loc_vertex = glGetUniformLocation(prog_vertex,"camera");
-	obj_color_loc_vertex = glGetUniformLocation(prog_vertex,"obj_color");
-	das_vertex = glGetUniformLocation(prog_vertex,"das");
+	das_frag = glGetUniformLocation(prog_frag,"dasr");
+	textures_loc = glGetUniformLocation(prog_frag, "textur");
 
 	light_pos = {0.0,1.0,0.0};
-	light_color = {1.0,1.0,1.0};
+	light_color = {2.0,2.0,2.0};
 	obj_color = {1.0,1.0,1.0};
-	das = {0.9,0.0,0.1};
+	dasr = {0.0,0.0,0.0,1.0};
 
 	glClearColor(0,0,0,0);
 }
@@ -229,32 +231,29 @@ void world_display(int w,int h)
 
 	glPolygonMode(GL_FRONT_AND_BACK,(world_fill ? GL_FILL : GL_LINE));
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_MULTISAMPLE);
 
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
 
-	if (world_shading_frag){
-		glUseProgram(prog_frag);
-		glUniform3fv(camera_loc_frag,1, glm::value_ptr(cam));
-		glUniform3fv(light_loc_frag,1, glm::value_ptr(cam));
-		glUniform3fv(light_color_frag,1, glm::value_ptr(light_color));
-		glUniform3fv(obj_color_loc_frag,1, glm::value_ptr(obj_color));
-		glUniform3fv(das_frag,1, glm::value_ptr(das));
-		glUniformMatrix4fv(view_loc_frag,1,GL_FALSE,glm::value_ptr(view));
+	glUseProgram(prog_frag);
+	glUniform3fv(camera_loc_frag,1, glm::value_ptr(cam));
+	glUniform3fv(light_loc_frag,1, glm::value_ptr(cam));
+	glUniform3fv(light_color_frag,1, glm::value_ptr(light_color));
+	glUniform3fv(obj_color_loc_frag,1, glm::value_ptr(obj_color));
+	glUniform4fv(das_frag,1, glm::value_ptr(dasr));
+	glUniformMatrix4fv(view_loc_frag,1,GL_FALSE,glm::value_ptr(view));
 
-	} else {
-		glUseProgram(prog_vertex);
-		glUniform3fv(camera_loc_vertex,1, glm::value_ptr(cam));
-		glUniform3fv(light_loc_vertex,1, glm::value_ptr(cam));
-		glUniform3fv(light_color_vertex,1, glm::value_ptr(light_color));
-		glUniform3fv(obj_color_loc_vertex,1, glm::value_ptr(obj_color));
-		glUniform3fv(das_vertex,1, glm::value_ptr(das));
-		glUniformMatrix4fv(view_loc_vertex,1,GL_FALSE,glm::value_ptr(view));
-	}
 
 	glBindVertexArray(vao);
 	glEnableVertexAttribArray(0);
 	glEnableVertexAttribArray(1);
+	glEnableVertexAttribArray(2);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D,tex);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D,ten);
+	glUniform1iv(textures_loc , 2, samplers);
 	glDrawArrays(GL_TRIANGLES,0,obj.faces().size());
 }
 
